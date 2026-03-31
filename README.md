@@ -24,4 +24,5 @@ python3 -m venv .venv
 pip install -e .[dev]
 pytest
 python scripts/replay_demo.py
+python scripts/replay_session.py <session_file> [--inject-bad-checksum]
 ```
