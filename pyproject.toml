@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peripheral-protocol-workbench"
+version = "0.1.0"
+description = "Protocol and transport tooling for embedded peripheral communication."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<9"]
+
+[tool.setuptools.packages.find]
+include = ["peripheral_protocol_workbench*"]
