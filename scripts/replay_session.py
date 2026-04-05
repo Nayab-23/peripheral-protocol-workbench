@@ -7,14 +7,14 @@ from peripheral_protocol_workbench.protocol import Frame
 from peripheral_protocol_workbench.simulator import replay_frames, validate_replay
 
 
-def load_frames_from_file(filename: str) -> list[Frame]:
-    with open(filename, "r", encoding="utf-8") as f:
+def load_frames_from_file(path: str) -> list[Frame]:
+    with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     frames = []
     for item in data:
         # Expecting dicts with keys: message_type, sequence, payload (base64 or hex string)
-        # Here assume payload is hex string
-        payload_bytes = bytes.fromhex(item.get("payload", ""))
+        # For simplicity, assume payload is hex string
+        payload_bytes = bytes.fromhex(item["payload"])
         frame = Frame(
             message_type=item["message_type"],
             sequence=item["sequence"],
@@ -24,22 +24,14 @@ def load_frames_from_file(filename: str) -> list[Frame]:
     return frames
 
 
-def print_frame_summary(frame: Frame) -> None:
-    # Print a concise summary of the frame
-    payload_preview = frame.payload[:16]
-    payload_display = payload_preview.hex() + ("..." if len(frame.payload) > 16 else "")
-    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02X} payload_len={len(frame.payload)} payload={payload_display}")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Replay a captured serial protocol session and print frame summaries.")
-    parser.add_argument("session_file", help="Path to JSON file containing captured frames")
+    parser.add_argument("session_file", help="Path to the JSON file containing captured frames")
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
         help="Inject bad checksum errors during replay for testing",
     )
-
     args = parser.parse_args()
 
     try:
@@ -48,17 +40,9 @@ def main() -> int:
         print(f"Error loading session file: {e}", file=sys.stderr)
         return 1
 
-    try:
-        for result in validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)):
-            # result is a tuple or object describing replay result
-            # Print frame summary and validation status
-            frame = result.frame
-            status = "OK" if result.valid else "BAD CHECKSUM"
-            print_frame_summary(frame)
-            print(f"  Validation: {status}")
-    except Exception as e:
-        print(f"Error during replay: {e}", file=sys.stderr)
-        return 1
+    results = validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum))
+    for result in results:
+        print(result)
 
     return 0
 
