@@ -7,8 +7,8 @@ from peripheral_protocol_workbench.protocol import Frame
 from peripheral_protocol_workbench.simulator import replay_frames, validate_replay
 
 
-def load_frames_from_file(path: str) -> list[Frame]:
-    with open(path, "r", encoding="utf-8") as f:
+def load_frames_from_file(filename: str) -> list[Frame]:
+    with open(filename, "r", encoding="utf-8") as f:
         data = json.load(f)
     frames = []
     for item in data:
@@ -24,11 +24,14 @@ def load_frames_from_file(path: str) -> list[Frame]:
     return frames
 
 
+def print_frame_summary(frame: Frame) -> None:
+    # Print a concise summary of the frame
+    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02X} payload_len={len(frame.payload)} payload={frame.payload.hex()}")
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Replay a captured serial protocol session and print frame summaries."
-    )
-    parser.add_argument("session_file", help="Path to JSON file containing captured frames")
+    parser = argparse.ArgumentParser(description="Replay a captured serial protocol session and print frame summaries.")
+    parser.add_argument("session_file", help="Path to the JSON file containing captured frames")
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
@@ -43,12 +46,11 @@ def main() -> int:
         print(f"Error loading session file: {e}", file=sys.stderr)
         return 1
 
-    try:
-        for result in validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)):
-            print(result)
-    except Exception as e:
-        print(f"Error during replay: {e}", file=sys.stderr)
-        return 1
+    replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
+    for result in validate_replay(replay_iter):
+        print_frame_summary(result.frame)
+        if result.error:
+            print(f"  ERROR: {result.error}")
 
     return 0
 
