@@ -26,3 +26,20 @@ pytest
 python scripts/replay_demo.py
 python scripts/replay_session.py <session_file> [--inject-bad-checksum]
 ```
+
+
+## Session File Format
+
+The session file is expected to be a JSON lines file where each line is a JSON object representing a frame with keys:
+
+- `message_type`: integer
+- `sequence`: integer
+- `payload`: hex string (e.g. "4c45443a6f6e" for "LED:on")
+
+Example line:
+
+```json
+{"message_type":16,"sequence":1,"payload":"6c65643a6f6e"}
+```
+
+Use this format to record and replay captured sessions for inspection and fault injection.
