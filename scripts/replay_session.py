@@ -21,27 +21,44 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def main() -> int:
-    args = parse_args()
+def load_frames(file) -> list[Frame]:
     frames = []
-    for line_number, line in enumerate(args.session_file, start=1):
+    for line_number, line in enumerate(file, 1):
         line = line.strip()
         if not line:
             continue
         try:
             obj = json.loads(line)
             # Validate keys
-            mt = obj["message_type"]
-            seq = obj["sequence"]
-            payload_hex = obj["payload"]
-            payload_bytes = bytes.fromhex(payload_hex)
-            frames.append(Frame(message_type=mt, sequence=seq, payload=payload_bytes))
-        except (KeyError, ValueError, json.JSONDecodeError) as e:
-            print(f"Error parsing line {line_number}: {e}", file=sys.stderr)
-            return 1
+            if not all(k in obj for k in ("message_type", "sequence", "payload")):
+                print(f"Skipping line {line_number}: missing required keys", file=sys.stderr)
+                continue
+            # Convert payload hex string to bytes
+            payload_bytes = bytes.fromhex(obj["payload"])
+            frame = Frame(
+                message_type=obj["message_type"],
+                sequence=obj["sequence"],
+                payload=payload_bytes,
+            )
+            frames.append(frame)
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Skipping line {line_number}: invalid format ({e})", file=sys.stderr)
+    return frames
 
-    for result in validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)):
+def main() -> int:
+    args = parse_args()
+    frames = load_frames(args.session_file)
+    if not frames:
+        print("No valid frames loaded from session file.", file=sys.stderr)
+        return 1
+
+    # Replay frames with optional fault injection
+    replayed = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
+
+    # Validate replay and print results
+    for result in validate_replay(replayed):
         print(result)
+
     return 0
 
 if __name__ == "__main__":

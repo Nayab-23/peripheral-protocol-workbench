@@ -43,3 +43,14 @@ Example line:
 ```
 
 Use this format to record and replay captured sessions for inspection and fault injection.
+
+
+## Replay Session CLI
+
+Use `scripts/replay_session.py` to replay a captured session file and print frame summaries. Supports optional injection of bad checksum errors for testing.
+
+Example usage:
+
+```bash
+python scripts/replay_session.py session.jsonl --inject-bad-checksum
+```
