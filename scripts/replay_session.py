@@ -47,7 +47,9 @@ def main() -> int:
         return 1
 
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    for result in validate_replay(replay_iter):
+    results = validate_replay(replay_iter)
+
+    for result in results:
         print(result)
 
     return 0
