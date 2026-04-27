@@ -17,12 +17,18 @@ def load_frames_from_file(path: str) -> Iterator[Frame]:
             obj = json.loads(line)
             # Convert hex string payload to bytes
             payload_bytes = bytes.fromhex(obj["payload"])
-            yield Frame(message_type=obj["message_type"], sequence=obj["sequence"], payload=payload_bytes)
+            yield Frame(
+                message_type=obj["message_type"],
+                sequence=obj["sequence"],
+                payload=payload_bytes,
+            )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Replay a captured serial protocol session and print frame summaries.")
-    parser.add_argument("session_file", help="Path to the JSON lines session file")
+    parser = argparse.ArgumentParser(
+        description="Replay a captured serial protocol session and print frame summaries."
+    )
+    parser.add_argument("session_file", help="Path to the session JSON lines file")
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
@@ -34,15 +40,19 @@ def main() -> int:
     try:
         frames = list(load_frames_from_file(args.session_file))
     except Exception as e:
-        print(f"Error reading session file: {e}", file=sys.stderr)
+        print(f"Error loading session file: {e}", file=sys.stderr)
         return 1
 
-    replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    for result in validate_replay(replay_iter):
-        print(result)
+    try:
+        replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
+        for result in validate_replay(replay_iter):
+            print(result)
+    except Exception as e:
+        print(f"Error during replay: {e}", file=sys.stderr)
+        return 1
 
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
