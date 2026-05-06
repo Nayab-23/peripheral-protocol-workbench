@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import sys
 from typing import Iterator
 
 from peripheral_protocol_workbench.protocol import Frame
@@ -31,15 +32,21 @@ def main() -> int:
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors during replay for testing",
+        help="Inject bad checksum errors into replayed frames",
     )
 
     args = parser.parse_args()
 
-    frames = list(load_frames_from_file(args.session_file))
+    try:
+        frames = list(load_frames_from_file(args.session_file))
+    except Exception as e:
+        print(f"Error loading session file: {e}", file=sys.stderr)
+        return 1
 
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    for result in validate_replay(replay_iter):
+    results = validate_replay(replay_iter)
+
+    for result in results:
         print(result)
 
     return 0
