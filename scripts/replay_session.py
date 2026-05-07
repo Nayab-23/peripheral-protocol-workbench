@@ -28,11 +28,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Replay a captured serial protocol session and print frame summaries."
     )
-    parser.add_argument("session_file", help="Path to the JSON lines session file")
+    parser.add_argument(
+        "session_file",
+        help="Path to the JSON lines session file containing frames",
+    )
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors into replayed frames",
+        help="Inject bad checksum errors during replay for testing",
     )
 
     args = parser.parse_args()
@@ -43,10 +46,11 @@ def main() -> int:
         print(f"Error loading session file: {e}", file=sys.stderr)
         return 1
 
+    # Replay frames with optional bad checksum injection
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    results = validate_replay(replay_iter)
 
-    for result in results:
+    # Validate replay and print results
+    for result in validate_replay(replay_iter):
         print(result)
 
     return 0
