@@ -16,7 +16,7 @@ def load_frames_from_file(file_path: str) -> Iterator[Frame]:
                 continue
             try:
                 obj = json.loads(line)
-                # Validate keys
+                # Expecting keys: message_type (int), sequence (int), payload (hex str)
                 message_type = obj["message_type"]
                 sequence = obj["sequence"]
                 payload_hex = obj["payload"]
@@ -28,10 +28,10 @@ def load_frames_from_file(file_path: str) -> Iterator[Frame]:
 
 def print_frame_summary(frame: Frame) -> None:
     # Print a concise summary of the frame
-    payload_preview = frame.payload[:16].hex()
-    if len(frame.payload) > 16:
-        payload_preview += "..."
-    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02X} payload={payload_preview}")
+    payload_preview = frame.payload.decode(errors='replace')
+    if len(payload_preview) > 40:
+        payload_preview = payload_preview[:37] + "..."
+    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02X} payload='{payload_preview}'")
 
 
 def main() -> int:
@@ -40,17 +40,21 @@ def main() -> int:
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors during replay for testing",
+        help="Inject bad checksum errors into replayed frames for testing",
     )
     args = parser.parse_args()
 
-    frames = list(load_frames_from_file(args.session_file))
-    if not frames:
-        print(f"No valid frames loaded from {args.session_file}", file=sys.stderr)
+    try:
+        frames = list(load_frames_from_file(args.session_file))
+    except FileNotFoundError:
+        print(f"Error: File not found: {args.session_file}", file=sys.stderr)
         return 1
 
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    for result in validate_replay(replay_iter):
+    results = validate_replay(replay_iter)
+
+    for result in results:
+        # result is a string summary or validation message
         print(result)
 
     return 0
