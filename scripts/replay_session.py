@@ -15,26 +15,27 @@ def load_frames_from_file(path: str) -> Iterator[Frame]:
             if not line:
                 continue
             obj = json.loads(line)
-            # Convert hex string payload to bytes
+            # payload is hex string, decode to bytes
             payload_bytes = bytes.fromhex(obj["payload"])
-            yield Frame(message_type=obj["message_type"], sequence=obj["sequence"], payload=payload_bytes)
-
-
-def print_frame_summary(frame: Frame) -> None:
-    # Print a concise summary of the frame
-    payload_preview = frame.payload.decode(errors='replace')
-    if len(payload_preview) > 40:
-        payload_preview = payload_preview[:37] + "..."
-    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02x} payload='{payload_preview}'")
+            yield Frame(
+                message_type=obj["message_type"],
+                sequence=obj["sequence"],
+                payload=payload_bytes,
+            )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Replay a captured serial protocol session and print frame summaries.")
-    parser.add_argument("session_file", help="Path to the JSON lines session file")
+    parser = argparse.ArgumentParser(
+        description="Replay a captured serial protocol session and print frame summaries."
+    )
+    parser.add_argument(
+        "session_file",
+        help="Path to the JSON lines session file containing frames",
+    )
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors into replayed frames for testing",
+        help="Inject bad checksum errors during replay for testing",
     )
     args = parser.parse_args()
 
@@ -47,12 +48,7 @@ def main() -> int:
     try:
         replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
         for result in validate_replay(replay_iter):
-            # result is a Frame or error info, print summary
-            if isinstance(result, Frame):
-                print_frame_summary(result)
-            else:
-                # For errors or other results, just print repr
-                print(repr(result))
+            print(result)
     except Exception as e:
         print(f"Error during replay: {e}", file=sys.stderr)
         return 1
