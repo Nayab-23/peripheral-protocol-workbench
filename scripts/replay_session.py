@@ -8,8 +8,8 @@ from peripheral_protocol_workbench.protocol import Frame
 from peripheral_protocol_workbench.simulator import replay_frames, validate_replay
 
 
-def load_frames_from_file(filepath: str) -> Iterator[Frame]:
-    with open(filepath, "r", encoding="utf-8") as f:
+def load_frames_from_file(path: str) -> Iterator[Frame]:
+    with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -24,14 +24,19 @@ def load_frames_from_file(filepath: str) -> Iterator[Frame]:
             )
 
 
+def print_frame_summary(frame: Frame) -> None:
+    # Print a concise summary of the frame
+    payload_preview = frame.payload.decode(errors='replace')
+    if len(payload_preview) > 40:
+        payload_preview = payload_preview[:37] + "..."
+    print(f"Frame seq={frame.sequence} type=0x{frame.message_type:02x} payload='{payload_preview}'")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Replay a captured serial protocol session and print frame summaries."
     )
-    parser.add_argument(
-        "session_file",
-        help="Path to the JSON lines session file containing frames",
-    )
+    parser.add_argument("session_file", help="Path to the JSON lines session file")
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
@@ -48,7 +53,12 @@ def main() -> int:
 
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
     for result in validate_replay(replay_iter):
-        print(result)
+        # result is a Frame or error info, print summary or error
+        if isinstance(result, Frame):
+            print_frame_summary(result)
+        else:
+            # Could be an error or validation message
+            print(f"Validation: {result}")
 
     return 0
 
