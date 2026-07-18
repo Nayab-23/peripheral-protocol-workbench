@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import sys
 from typing import Iterator
 
 from peripheral_protocol_workbench.protocol import Frame
@@ -30,11 +29,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    try:
-        frames = list(load_frames_from_file(args.session_file))
-    except Exception as e:
-        print(f"Error loading session file: {e}", file=sys.stderr)
-        return 1
+    frames = list(load_frames_from_file(args.session_file))
 
     replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
     for result in validate_replay(replay_iter):
