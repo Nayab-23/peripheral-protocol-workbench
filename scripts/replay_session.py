@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import sys
 from typing import Iterator
 
 from peripheral_protocol_workbench.protocol import Frame
 from peripheral_protocol_workbench.simulator import replay_frames, validate_replay
 
 
-def load_frames_from_file(path: str) -> Iterator[Frame]:
-    with open(path, "r", encoding="utf-8") as f:
+def load_frames_from_file(filename: str) -> Iterator[Frame]:
+    with open(filename, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            obj = json.loads(line)
-            # Convert hex string payload to bytes
-            payload_bytes = bytes.fromhex(obj["payload"])
-            yield Frame(message_type=obj["message_type"], sequence=obj["sequence"], payload=payload_bytes)
+            try:
+                obj = json.loads(line)
+                # Expect keys: message_type, sequence, payload (hex string)
+                message_type = obj["message_type"]
+                sequence = obj["sequence"]
+                payload_hex = obj["payload"]
+                payload = bytes.fromhex(payload_hex)
+                yield Frame(message_type=message_type, sequence=sequence, payload=payload)
+            except (KeyError, ValueError, json.JSONDecodeError) as e:
+                print(f"Warning: skipping invalid line: {line}\n  Reason: {e}", file=sys.stderr)
 
 
 def main() -> int:
@@ -25,14 +32,17 @@ def main() -> int:
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors during replay for testing",
+        help="Inject bad checksum errors into replayed frames for testing",
     )
     args = parser.parse_args()
 
     frames = list(load_frames_from_file(args.session_file))
+    if not frames:
+        print(f"No valid frames found in {args.session_file}", file=sys.stderr)
+        return 1
 
-    replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
-    for result in validate_replay(replay_iter):
+    results = validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum))
+    for result in results:
         print(result)
 
     return 0
