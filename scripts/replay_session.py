@@ -8,42 +8,42 @@ from peripheral_protocol_workbench.protocol import Frame
 from peripheral_protocol_workbench.simulator import replay_frames, validate_replay
 
 
-def load_frames_from_file(filename: str) -> Iterator[Frame]:
-    with open(filename, "r", encoding="utf-8") as f:
+def read_session_file(path: str) -> Iterator[Frame]:
+    with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            try:
-                obj = json.loads(line)
-                # Expect keys: message_type, sequence, payload (hex string)
-                message_type = obj["message_type"]
-                sequence = obj["sequence"]
-                payload_hex = obj["payload"]
-                payload = bytes.fromhex(payload_hex)
-                yield Frame(message_type=message_type, sequence=sequence, payload=payload)
-            except (KeyError, ValueError, json.JSONDecodeError) as e:
-                print(f"Warning: skipping invalid line: {line}\n  Reason: {e}", file=sys.stderr)
+            obj = json.loads(line)
+            # Convert hex string payload to bytes
+            payload_bytes = bytes.fromhex(obj["payload"])
+            yield Frame(message_type=obj["message_type"], sequence=obj["sequence"], payload=payload_bytes)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Replay a captured serial protocol session and print frame summaries.")
-    parser.add_argument("session_file", help="Path to the JSON lines session file")
+    parser.add_argument("session_file", help="Path to the JSONL session file")
     parser.add_argument(
         "--inject-bad-checksum",
         action="store_true",
-        help="Inject bad checksum errors into replayed frames for testing",
+        help="Inject bad checksum errors during replay for testing",
     )
+
     args = parser.parse_args()
 
-    frames = list(load_frames_from_file(args.session_file))
-    if not frames:
-        print(f"No valid frames found in {args.session_file}", file=sys.stderr)
+    try:
+        frames = list(read_session_file(args.session_file))
+    except Exception as e:
+        print(f"Error reading session file: {e}", file=sys.stderr)
         return 1
 
-    results = validate_replay(replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum))
-    for result in results:
-        print(result)
+    try:
+        replay_iter = replay_frames(frames, inject_bad_checksum=args.inject_bad_checksum)
+        for result in validate_replay(replay_iter):
+            print(result)
+    except Exception as e:
+        print(f"Error during replay: {e}", file=sys.stderr)
+        return 2
 
     return 0
 
